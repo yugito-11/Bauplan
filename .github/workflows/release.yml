@@ -1,0 +1,73 @@
+# Baut bei jeder Änderung das Windows-Programm (Bauplan.exe) und die Mod (bauplan-<Version>.jar).
+# Gibt es für die Versionsnummer in der Datei VERSION noch kein Release, wird eins mit beiden Dateien angelegt.
+# Programm und Mod haben immer dieselbe Version; beide finden ihre Updates im selben Release.
+name: Bauen und veröffentlichen
+
+on:
+  push:
+    branches: [main]
+    paths: ["app/**", "mod/**", "VERSION", "ANLEITUNG.md", ".github/workflows/release.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Version lesen
+        id: v
+        run: echo "version=$(tr -d '[:space:]' < VERSION)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Programm bauen
+        run: >
+          dotnet publish app -c Release -r win-x64 --self-contained true
+          -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:EnableCompressionInSingleFile=true -p:DebugType=none
+          -p:Version=${{ steps.v.outputs.version }} -o out
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Mod bauen
+        working-directory: mod
+        run: |
+          chmod +x gradlew
+          ./gradlew build --no-daemon -Pversion=${{ steps.v.outputs.version }}
+          cp build/libs/bauplan-${{ steps.v.outputs.version }}.jar ../out/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Bauplan-${{ steps.v.outputs.version }}
+          path: |
+            out/Bauplan.exe
+            out/bauplan-*.jar
+
+      - name: Release anlegen (nur bei neuer Version)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          V: ${{ steps.v.outputs.version }}
+        run: |
+          if gh release view "v$V" >/dev/null 2>&1; then echo "Release v$V gibt es schon – nichts zu tun."; exit 0; fi
+          short=$(echo "$V" | cut -d. -f1-2)
+          {
+            echo "**Programm:** \`Bauplan.exe\` herunterladen, speichern, doppelklicken. Windows warnt beim ersten Start (nicht signiert): „Weitere Informationen“ → „Trotzdem ausführen“."
+            echo
+            echo "**Mod:** \`bauplan-$V.jar\` in Modrinth ins Profil holen („Inhalt hinzufügen“ → Datei auswählen). Für **Minecraft 26.3 mit Fabric** (Fabric API nötig)."
+            echo
+            echo "Anleitung: [ANLEITUNG.md](https://github.com/${GITHUB_REPOSITORY}/blob/main/ANLEITUNG.md)"
+            echo
+            awk -v s="### Neu in $short" 'index($0, s) == 1 { on = 1; print; next } on && /^##/ { exit } on { print }' ANLEITUNG.md
+          } > notes.md
+          gh release create "v$V" out/Bauplan.exe "out/bauplan-$V.jar" --title "Bauplan $short" --notes-file notes.md --target "$GITHUB_SHA"

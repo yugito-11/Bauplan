@@ -1,0 +1,21 @@
+{
+	"schemaVersion": 1,
+	"id": "bauplan",
+	"version": "${version}",
+	"name": "Bauplan",
+	"description": "Gemeinsam bauen: Aufgaben, Material, Lager und Koordinaten für die Gruppe (über eine eigene Firebase-Datenbank) und Live-Verbindung zum Bauplan-Programm. Auf dem Client reicht es; auf dem Server optional für die Live-Verbindung aller.",
+	"authors": ["Tobias"],
+	"license": "MIT",
+	"environment": "*",
+	"mixins": ["bauplan.mixins.json"],
+	"entrypoints": {
+		"main": ["de.bauplan.live.Live"],
+		"client": ["de.bauplan.BauplanClient", "de.bauplan.live.LiveClient"]
+	},
+	"depends": {
+		"fabricloader": ">=0.19.5",
+		"minecraft": "~26.3",
+		"java": ">=25",
+		"fabric-api": "*"
+	}
+}

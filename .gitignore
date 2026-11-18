@@ -1,0 +1,18 @@
+# Mod (Gradle)
+mod/.gradle/
+mod/build/
+mod/run/
+*.class
+
+# Programm (.NET)
+bin/
+obj/
+publish/
+*.user
+.vs/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.DS_Store
